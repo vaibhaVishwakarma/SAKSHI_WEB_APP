@@ -1,11 +1,11 @@
-import time
-from typing import Annotated
+import io
+import random
 from webbrowser import get
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File
-from PIL import Image
-import os
+import cv2
+import numpy as np
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from numpy import nansum
 from fastapi.templating import Jinja2Templates
 app = FastAPI()
@@ -23,10 +23,36 @@ app.add_middleware(
 
 @app.post("/uploadfile/")
 async def create_upload_file(file: UploadFile = File(...)):
-    with open(f"output.{file.filename[-3:]}" , "wb") as f:
-        f.write( await file.read())
+    # Read the file into a NumPy array
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+
+    # Decode the NumPy array into an image
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    # Define font and text properties
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    org = (random.randint(0, image.shape[1] - 1), random.randint(0, image.shape[0] - 1))  # Random position
+    fontScale = 1
+    color = (255, 0, 0)  # Blue color in BGR
+    thickness = 2
+
+    # Using cv2.putText() method to add text to the image
+    image = cv2.putText(image, 'Simple', org, font, fontScale, color, thickness, cv2.LINE_AA)
+
+    # Save the modified image
+    cv2.imwrite("output.jpg", image)
+
     return {"filename": file.filename}
 
+
+
+@app.get("/latest_image")
+async def get_latest_image():
+    with open("output.jpg","rb") as f:
+        
+        return StreamingResponse(io.BytesIO(f.read()), media_type="image/jpeg")
+    return {"error": "No image available"}
 
 @app.get("/",response_class = HTMLResponse)
 async def getpage(request : Request):

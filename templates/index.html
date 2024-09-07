@@ -3,15 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Feed at 2 FPS</title>
+    <title>Camera Feed and Server Images</title>
     <style>
         video {
             display: none; /* Hide the video element */
         }
         canvas {
-            width: 100%; /* Adjust as needed */
-            height: auto; /* Maintain aspect ratio */
+            width: 60; /* Adjust as needed */
+            height: 100; /* Maintain aspect ratio */
             border: 1px solid black; /* Optional: for visibility */
+        }
+        #imageBox {
+            margin-top: 20px;
+            border: 1px solid black;
+            width: 100%;
+            height: auto;
+            text-align: center;
+        }
+        #imageBox img {
+            max-width: 100%; /* Responsive image */
+            height: auto; /* Maintain aspect ratio */
         }
     </style>
 </head>
@@ -19,6 +30,11 @@
     <h1>Camera Feed at 2 FPS</h1>
     <canvas id="canvas"></canvas>
     <video id="video" autoplay playsinline></video>
+
+    <div id="imageBox">
+        <h2>Latest Image from Server</h2>
+        <img id="serverImage" src="" alt="Latest from Server">
+    </div>
 
     <script>
         async function startCamera() {
@@ -67,14 +83,37 @@
                             }
                         }
                     }, 'image/jpeg'); // Specify the image format
-                }, 1000 / 1); // 1000 ms / 2 FPS = 500 ms per frame
+                }, 1000 / 2); // 1000 ms / 2 FPS = 500 ms per frame
             } catch (error) {
                 console.error('Error accessing the camera:', error);
             }
         }
 
-        // Start the camera when the page loads
-        window.onload = startCamera;
+        // Function to fetch the latest image from the server
+        function fetchLatestImage() {
+            const serverImage = document.getElementById('serverImage');
+            fetch('/latest_image') // Adjust endpoint as necessary
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // Create a local URL for the image blob and set it as the src of the img tag
+                    const url = URL.createObjectURL(blob);
+                    serverImage.src = url;
+                })
+                .catch(error => {
+                    console.error('Error fetching image from server:', error);
+                });
+        }
+
+        // Start the camera and fetch the latest image every 500 ms
+        window.onload = () => {
+            startCamera();
+            setInterval(fetchLatestImage, 1000/2 ); // Fetch every 500 ms (2 times per second)
+        };
     </script>
 </body>
 </html>
